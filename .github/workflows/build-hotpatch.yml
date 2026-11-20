@@ -1,0 +1,38 @@
+name: 构建 CFM 热补丁加载器 IPA (CFPatchLoader)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ipa_url:
+        description: '222.ipa 直链（可匿名下载）'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 工具
+        run: |
+          brew install ldid insert_dylib 2>/dev/null || true
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+
+      - name: 下载原版 IPA
+        run: |
+          curl -L --retry 3 "${{ inputs.ipa_url }}" -o 222.ipa
+          ls -lh 222.ipa
+
+      - name: 编译 + 注入 + 打包
+        run: bash "$GITHUB_WORKSPACE/build_and_package.sh" "$GITHUB_WORKSPACE/222.ipa"
+
+      - name: 上传
+        uses: actions/upload-artifact@v4
+        with:
+          name: 222-hotpatch
+          path: 222-hotpatch.ipa
+          retention-days: 7
